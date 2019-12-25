@@ -38,7 +38,7 @@ access_N_K(Index, Tree, Value) :-
 			%a mod b when b = 2^k is { a bitwise_and (k - 1) }
 			Mod_Idx is Sht_Idx /\ (K - 1),
 			SonIndex is Mod_Idx + N + 1,	%add back first N + 1 elems
-			%index on subtree
+			%index on subtree: a div 2^k is a >> log(k) + 1
 			NewIndex is (Index - N - 1) >>  Log_K + 1,
 			arg(SonIndex, Tree, Son),
 			%go deeper
