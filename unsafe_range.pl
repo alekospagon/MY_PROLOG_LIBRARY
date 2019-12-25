@@ -1,30 +1,17 @@
 /* ___________________IO___________________  */
 
 %read_from_file
-read_from_file(File, Params, Lines) :-
+read_from_file(File, [N, Mod], Lines) :-
 	 open(File, read, Stream),
-	 read_params(Stream, Params),
-	 Params = [N | _],
+	 read_string_(Stream, [N, Mod]),
 	 read_lines(Stream, N, Lines).
 
-%read_first_line
-read_params(Stream , Params) :-
-	 read_line_to_codes(Stream, Line),
-	 atom_codes(Atom, Line),
+%read_line into list of ints
+read_string_(Stream , Params) :-
+	 read_line_to_codes(Stream, Codes),
+	 atom_codes(Atom, Codes),
 	 atomic_list_concat(Atoms, ' ', Atom),
 	 maplist(atom_number, Atoms, Params).
-
-
-%useful_for_maplist.
-code_char(A,B) :- char_code(B,A).
-
-%read_a_string
-read_string_(Stream, Res) :-
-	read_line_to_codes(Stream, Codes),	%read_line
-	Codes \= "\n",				
-	maplist(code_char, Codes, Char_list),	%convert 
-	string_to_list(Res, Char_list).		
-
 
 %read_N_lines_from_Stream
 read_lines(_, 0, []).
@@ -36,9 +23,7 @@ read_lines(Stream, Counter, [X|L]) :-
 	read_lines(Stream, New_counter, L).
 
 
-%my_handle_is: read_from_file
-
-%__________________IO_END___________________
+/* __________________IO_END___________________ */
 
 
 
@@ -63,6 +48,8 @@ wins(L) :-
 	8191,16383,32767,65535,131071,262143,524287, 1048575].
 
 
+max_index(1000009).
+
 %ACCESS ARRAY ELEMENT -> 1-indexed. shift by one here
 %keep rest of code zero indexed
 access(Index, Array, Value) :-
@@ -70,7 +57,6 @@ access(Index, Array, Value) :-
 	Index >= 0,
 	%shift to get actual index
 	Actual_Index is Index + 1,
-	functor(Array, my_array, MAX_INDEX),
 	arg(Actual_Index, Array, Value).
 
 
@@ -95,11 +81,12 @@ calc(Array, Index, [Win|Rest], Acc, Mod, Res) :-
 
 %make array
 ways(Mod, Ways_Array) :-
-	make_ways(0, Mod, Ways_Array).
+	max_index(MAX_INDEX),
+	functor(Ways_Array, my_array, MAX_INDEX),
+	access(0, Ways_Array, 1),
+	access(1, Ways_Array, 1),
+	make_ways(2, Mod, Ways_Array).
 
-%first cases
-make_ways(0, Mod, Ways_Array) :- access(0, Ways_Array, 1).
-make_ways(1, Mod, Ways_Array) :- access(1, Ways_Array, 1).
 %building array upwards
 make_ways(Index, Mod, Ways_Array) :-
 	max_index(Index)	%done
@@ -108,13 +95,12 @@ make_ways(Index, Mod, Ways_Array) :-
 		%add dp[i]
 		wins(Wins),
 		calc(Ways_Array, Index, Wins, 0, Mod, DP_elem),
-		access(N, Ways_Array, DP_elem),
+		access(Index, Ways_Array, DP_elem),
 
 		%continue upwards
-		Succ is N + 1,
+		Succ is Index + 1,
 		make_ways(Succ, Mod, Ways_Array)
 	).
-
 
 
 
@@ -122,16 +108,17 @@ make_ways(Index, Mod, Ways_Array) :-
 partial(Mod, Partial_Array) :-
 	%MAKE WAYS ONCE
 	ways(Mod, Ways_Array),
-	make_partial(0, Mod, Ways_Array, Partial_Array).
-
-make_partial(0, Mod, Ways_Array, Partial_Array) :- 
-	access(0, Partial_Array, 0).
+	max_index(MAX_INDEX),
+	functor(Partial_Array, my_array, MAX_INDEX),
+	access(0, Partial_Array, 1),
+	make_partial(1, Mod, Ways_Array, Partial_Array).
 
 make_partial(Index, Mod, Ways_Array, Partial_Array) :-
 	max_index(Index)
 	;
 	(
 		%Fetch
+		Index >= 1,
 		Prev is Index - 1,
 		access(Index, Ways_Array, Ways_I),
 		access(Prev, Partial_Array, Part_I),
@@ -145,40 +132,52 @@ make_partial(Index, Mod, Ways_Array, Partial_Array) :-
 	
 		%Continue
 		Succ is Index + 1,
-		make_partial(Succ, Mod, Ways_Array, Partial_Array).
+		make_partial(Succ, Mod, Ways_Array, Partial_Array)
 	).
 
 
 
-solve(0, 0, _, 1).
-solve(0, N2, Mod, Res) :-
+
+solve(0, 0, _, _, 1).
+solve(0, N2, Partial_Array, Mod, Res) :-
 	N2 > 0,
 
-	memo( partial(N2, Mod, Partial_N2) ),
+	% 2 * partial[n2] - 1
+	access(N2, Partial_Array, Partial_N2),
 
 	Raw_Res is 2 * Partial_N2 - 1,
 	em(Raw_Res, Mod, Res).
 
-solve(N1, N2, Mod, Res) :-
+
+solve(N1, N2, Partial_Array, Mod, Res) :-
 	N1 > 0,
 	N2 > 0,
 	But_one is N1 - 1,
-	memo( partial(But_one, Mod, Partial_N1) ),
-	memo( partial(N2, Mod, Partial_N2) ),
+
+	% 2 * (partial[n2] - partial[n1-1])
+	access(But_one, Partial_Array, Partial_N1),
+	access(N2, Partial_Array, Partial_N2),
+
 	Raw_Res is 2 * (Partial_N2 - Partial_N1),
 	em(Raw_Res, Mod, Res).
 
 
 
-tabling(10000, Mod, Res, Res).
-tabling(N, Mod, Temp, Res) :-
-	N < 10000,
+
+
+do_solve([], _, _ , []).
+do_solve([[N1, N2] | Rest], Partial_Array, Mod, [Res | Rest_res]) :-
+	solve(N1, N2, Partial_Array, Mod, Res),
+	do_solve(Rest, Partial_Array, Mod, Rest_res).
+
+
+
+final(File, Res) :-
+	%read
+	read_from_file(File, [_, Mod], Lines),
+	%make array
+	partial(Mod, Partial_Array),
+	%print solutions
+	do_solve(Lines, Partial_Array, Mod, Res).
 	
 
-
-	Succ is N + 1,
-	tabling(Succ, Mod).
-
-
-tabling_h(Mod, Res) :-
-	tabling(0, Mod, Res).
