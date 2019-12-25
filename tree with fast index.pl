@@ -6,8 +6,8 @@
 
 %Tree parameters
 %choose power of 2 to avoid inefficient mod/div calculations
-n(1024).		%node elements  -> 2^13
-k(32).			%subtrees hanging from node -> 2^4
+n(1024).		%node elements  -> 2^10
+k(32).			%subtrees hanging from node -> 2^5
 log_k(5).
 max_index(1000009).	%max index for my array.
 
