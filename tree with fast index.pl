@@ -52,7 +52,6 @@ access_N_K(Index, Tree, Value) :-
 		max_index(Index) 
 	;
 		(
-			Index < 1000009,
 			%sample tree -> on third term store 
 			%your values. (I store the index)
 			access_N_plus_K(Index, Tree, Index),
